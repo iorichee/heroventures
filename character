@@ -1,0 +1,73 @@
+import discord
+from discord.ext import commands
+from discord.ui import View, Button
+
+class CharacterView(View):
+    def __init__(self, user):
+        super().__init__(timeout=None)
+        self.user = user
+        self.base_stats = {"HP": 10, "Attack": 2, "Defense": 1, "Mana": 10}
+        self.points = 5
+        self.stats = self.base_stats.copy()
+
+    def get_embed(self):
+        desc = "\n".join([f"{k}: {v}" for k, v in self.stats.items()])
+        return discord.Embed(
+            title=f"{self.user.display_name}'s Character",
+            description=f"Class: Student\nRace: Human\n\n{desc}\n\nPoints left: {self.points}",
+            color=discord.Color.blue()
+        )
+
+    async def update_message(self, interaction):
+        await interaction.response.edit_message(embed=self.get_embed(), view=self)
+
+    async def add_stat(self, interaction, stat):
+        if interaction.user != self.user:
+            return await interaction.response.send_message("This is not your character!", ephemeral=True)
+        if self.points > 0:
+            self.stats[stat] += 1
+            self.points -= 1
+        await self.update_message(interaction)
+
+    @discord.ui.button(label="➕ HP", style=discord.ButtonStyle.green)
+    async def hp_button(self, interaction: discord.Interaction, button: Button):
+        await self.add_stat(interaction, "HP")
+
+    @discord.ui.button(label="➕ Attack", style=discord.ButtonStyle.green)
+    async def attack_button(self, interaction: discord.Interaction, button: Button):
+        await self.add_stat(interaction, "Attack")
+
+    @discord.ui.button(label="➕ Defense", style=discord.ButtonStyle.green)
+    async def defense_button(self, interaction: discord.Interaction, button: Button):
+        await self.add_stat(interaction, "Defense")
+
+    @discord.ui.button(label="➕ Mana", style=discord.ButtonStyle.green)
+    async def mana_button(self, interaction: discord.Interaction, button: Button):
+        await self.add_stat(interaction, "Mana")
+
+    @discord.ui.button(label="🔄 Reset", style=discord.ButtonStyle.danger)
+    async def reset_button(self, interaction: discord.Interaction, button: Button):
+        if interaction.user != self.user:
+            return await interaction.response.send_message("This is not your character!", ephemeral=True)
+        self.stats = self.base_stats.copy()
+        self.points = 5
+        await self.update_message(interaction)
+
+    @discord.ui.button(label="✅ Confirm", style=discord.ButtonStyle.blurple)
+    async def confirm_button(self, interaction: discord.Interaction, button: Button):
+        if interaction.user != self.user:
+            return await interaction.response.send_message("This is not your character!", ephemeral=True)
+        await interaction.response.edit_message(content="✅ Character created successfully!", embed=None, view=None)
+
+class Character(commands.Cog):
+    def __init__(self, bot):
+        self.bot = bot
+
+    @commands.command(name="rpcreate")
+    async def rpcreate(self, ctx):
+        """Start creating a character"""
+        view = CharacterView(ctx.author)
+        await ctx.send(embed=view.get_embed(), view=view)
+
+async def setup(bot):
+    await bot.add_cog(Character(bot))
